@@ -21,9 +21,10 @@ class MainActivity: FlutterActivity() {
             val intent = Intent(this, AudioLoopbackService::class.java)
             
             if (call.method == "startLoopback") {
-                // --- NEW CHECK: Only start if headset is connected ---
                 if (isHeadsetConnected()) {
                     intent.action = "START"
+                    val useOboe = call.argument<Boolean>("useOboe") ?: true
+                    intent.putExtra("USE_OBOE", useOboe)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         startForegroundService(intent)
                     } else {
@@ -36,8 +37,6 @@ class MainActivity: FlutterActivity() {
                     // Tell Flutter we failed so the UI doesn't turn green
                     result.error("NO_HEADSET", "Headset not connected", null)
                 }
-                // ----------------------------------------------------
-
             } else if (call.method == "stopLoopback") {
                 intent.action = "STOP"
                 startService(intent)
