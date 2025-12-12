@@ -60,7 +60,7 @@ class _AudioLoopbackAppState extends State<AudioLoopbackApp> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Voice Loopback")),
+      appBar: AppBar(title: const Text("Hearing Aid")),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
