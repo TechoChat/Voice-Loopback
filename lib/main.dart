@@ -46,14 +46,22 @@ class _AudioLoopbackAppState extends State<AudioLoopbackApp> {
           statusText = "Stopped";
         });
       } else {
+        // Attempt to start
         await platform.invokeMethod('startLoopback');
+        // If the line above doesn't throw an error, it succeeded
         setState(() {
           isRunning = true;
-          statusText = "Running in Background";
+          statusText = "Hearing Aid Active";
         });
       }
     } on PlatformException catch (e) {
-      setState(() => statusText = "Error: ${e.message}");
+      // This runs if Native sends "NO_HEADSET" error
+      setState(() {
+        isRunning = false; // Keep the switch off
+        statusText = "Connect Headphones to start";
+      });
+      // The Toast message will appear automatically from Native code
+      debugPrint("Error: ${e.message}");
     }
   }
 
@@ -86,7 +94,7 @@ class _AudioLoopbackAppState extends State<AudioLoopbackApp> {
             const Padding(
               padding: EdgeInsets.all(20.0),
               child: Text(
-                "Note: Connect Bluetooth Speaker manually in Android Settings. "
+                "Note: Connect Wired/wireless headset in order to start. "
                 "The audio will route automatically.",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey),
