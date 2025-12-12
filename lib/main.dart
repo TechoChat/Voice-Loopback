@@ -3,12 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 void main() {
-  runApp(
-    const MaterialApp(
-      home: AudioLoopbackApp(),
-      debugShowCheckedModeBanner: false,
-    ),
-  );
+  runApp(const MaterialApp(home: AudioLoopbackApp()));
 }
 
 class AudioLoopbackApp extends StatefulWidget {
@@ -20,24 +15,45 @@ class AudioLoopbackApp extends StatefulWidget {
 
 class _AudioLoopbackAppState extends State<AudioLoopbackApp> {
   static const platform = MethodChannel('com.example.your_app/audio');
+
   bool isRunning = false;
-  String statusText = "Ready";
+  String statusText = "Connect Headset & Press Start";
+
+  // Volume State
+  double _volume = 1.0; // Starts at 1x (Normal)
+
+  @override
+  void initState() {
+    super.initState();
+    _syncServiceState();
+  }
+
+  Future<void> _syncServiceState() async {
+    try {
+      // Ask Java/Kotlin if the service is running
+      final bool isActive = await platform.invokeMethod('checkStatus');
+
+      if (isActive) {
+        setState(() {
+          isRunning = true;
+          statusText = "Hearing Aid Active (Background)";
+        });
+      }
+    } catch (e) {
+      debugPrint("Error syncing state: $e");
+    }
+  }
 
   Future<void> _checkPermissions() async {
-    // Request Microphone and Bluetooth permissions
-    Map<Permission, PermissionStatus> statuses = await [
+    await [
       Permission.microphone,
-      Permission.bluetoothConnect, // Required for Android 12+
+      Permission.bluetoothConnect,
+      Permission.notification,
     ].request();
-
-    if (statuses[Permission.microphone] != PermissionStatus.granted) {
-      setState(() => statusText = "Microphone permission required");
-    }
   }
 
   Future<void> _toggleService() async {
     await _checkPermissions();
-
     try {
       if (isRunning) {
         await platform.invokeMethod('stopLoopback');
@@ -46,58 +62,99 @@ class _AudioLoopbackAppState extends State<AudioLoopbackApp> {
           statusText = "Stopped";
         });
       } else {
-        // Attempt to start
         await platform.invokeMethod('startLoopback');
-        // If the line above doesn't throw an error, it succeeded
         setState(() {
           isRunning = true;
           statusText = "Hearing Aid Active";
         });
+        // Send current slider value immediately on start
+        _setVolume(_volume);
       }
     } on PlatformException catch (e) {
-      // This runs if Native sends "NO_HEADSET" error
+      debugPrint("Error: $e");
       setState(() {
-        isRunning = false; // Keep the switch off
-        statusText = "Connect Headphones to start";
+        isRunning = false;
+        statusText = "Error: Connect Headset First ";
       });
-      // The Toast message will appear automatically from Native code
-      debugPrint("Error: ${e.message}");
+    }
+  }
+
+  // Send volume to Native C++
+  Future<void> _setVolume(double value) async {
+    try {
+      if (isRunning) {
+        await platform.invokeMethod('setVolume', {"volume": value});
+      }
+    } catch (e) {
+      debugPrint("Error setting volume: $e");
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Hearing Aid")),
-      body: Center(
+      appBar: AppBar(title: const Text("Hearing Aid App")),
+      body: Padding(
+        padding: const EdgeInsets.all(30.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              isRunning ? Icons.mic : Icons.mic_off,
-              size: 80,
+              isRunning ? Icons.hearing : Icons.hearing_disabled,
+              size: 100,
               color: isRunning ? Colors.green : Colors.grey,
             ),
             const SizedBox(height: 20),
-            Text(statusText, style: const TextStyle(fontSize: 18)),
+            Text(
+              statusText,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 50),
+
+            // --- VOLUME SLIDER ---
+            const Text(
+              "Microphone Boost (Gain)",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            Row(
+              children: [
+                const Icon(Icons.volume_mute),
+                Expanded(
+                  child: Slider(
+                    value: _volume,
+                    min: 1.0, // Normal volume
+                    max: 10.0, // 10x Amplification
+                    divisions: 18, // Steps of 0.5
+                    label: "${_volume.toStringAsFixed(1)}x",
+                    onChanged: (value) {
+                      setState(() => _volume = value);
+                      _setVolume(value); // Update in real-time
+                    },
+                  ),
+                ),
+                const Icon(Icons.volume_up),
+              ],
+            ),
+            Text(
+              "Current Boost: ${_volume.toStringAsFixed(1)}x",
+              style: const TextStyle(color: Colors.blue, fontSize: 16),
+            ),
+
+            // ---------------------
             const SizedBox(height: 40),
             ElevatedButton(
               onPressed: _toggleService,
               style: ElevatedButton.styleFrom(
+                backgroundColor: isRunning ? Colors.red : Colors.blue,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 40,
                   vertical: 15,
                 ),
               ),
-              child: Text(isRunning ? "STOP LOOPBACK" : "START LOOPBACK"),
-            ),
-            const Padding(
-              padding: EdgeInsets.all(20.0),
               child: Text(
-                "Note: Connect Wired/wireless headset in order to start. "
-                "The audio will route automatically.",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
+                isRunning ? "STOP" : "START",
+                style: const TextStyle(color: Colors.white),
               ),
             ),
           ],

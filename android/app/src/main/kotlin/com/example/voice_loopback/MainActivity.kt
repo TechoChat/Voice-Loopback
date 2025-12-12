@@ -42,6 +42,15 @@ class MainActivity: FlutterActivity() {
                 intent.action = "STOP"
                 startService(intent)
                 result.success("Stopped")
+            } else if (call.method == "setVolume") {
+                val volume = call.argument<Double>("volume")?.toFloat() ?: 1.0f
+                
+                // Call the running service safely
+                AudioLoopbackService.instance?.updateVolume(volume)
+                
+                result.success(null)
+            } else if (call.method == "checkStatus") {
+                result.success(AudioLoopbackService.isServiceRunning)
             } else {
                 result.notImplemented()
             }
