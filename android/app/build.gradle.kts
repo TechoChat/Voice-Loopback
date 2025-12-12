@@ -20,14 +20,34 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        // TODO: Specify your own unique Application ID
         applicationId = "com.example.voice_loopback"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // --- NEW: Configure C++ Compiler Arguments ---
+        externalNativeBuild {
+            cmake {
+                cppFlags("-std=c++17")
+                arguments("-DANDROID_STL=c++_shared")
+            }
+        }
+    }
+
+    // --- NEW: Enable 'prefab' to allow importing Oboe ---
+    buildFeatures {
+        prefab = true
+    }
+
+    // --- NEW: Point to your CMakeLists.txt file ---
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1" 
+        }
     }
 
     buildTypes {
@@ -41,4 +61,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+// --- NEW: Add dependencies block for Oboe ---
+dependencies {
+    implementation("com.google.oboe:oboe:1.9.3")
 }
